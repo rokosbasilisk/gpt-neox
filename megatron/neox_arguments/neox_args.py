@@ -298,6 +298,14 @@ class NeoXArgsOptimizer(NeoXArgsTemplate):
     """
     Zero: Number of elements allgathered at a time. Limits the memory required for the allgather for large model sizes
     """
+    
+    sub_group_size: int = 1000000000
+    stage3_max_live_parameters:int =  1000000000
+    stage3_max_reuse_distance: int = 1000000000
+    stage3_prefetch_bucket_size: int = 10000000
+    stage3_param_persistence_threshold: int = 100000
+    offload_optimizer: str = "cpu"
+    offload_param: str = "cpu"
 
     lr: float = None
     """
