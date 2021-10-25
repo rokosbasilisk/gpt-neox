@@ -86,6 +86,7 @@ class ParallelMLP(nn.Module):
         self.activation_func = get_activation(neox_args)
         self.activation_type = neox_args.activation
         self.bias_gelu_fusion = neox_args.bias_gelu_fusion
+        self.is_binary = neox_args.is_binary
 
         # auto scale so geglu has equal parameters
         ff_mult = 4 * 2 / 3 if self.activation_type == "geglu" else 4
@@ -101,6 +102,7 @@ class ParallelMLP(nn.Module):
             gather_output=False,
             init_method=init_method,
             skip_bias_add=True,
+            is_binary = self.is_binary,
         )
         ff_dim_in = ff_dim // 2 if self.activation_type == "geglu" else ff_dim
         # Project back to h.
@@ -112,6 +114,7 @@ class ParallelMLP(nn.Module):
             init_method=output_layer_init_method,
             skip_bias_add=True,
             parallel_output=parallel_output,
+            is_binary=self.is_binary,
         )
 
     def forward(self, hidden_states):

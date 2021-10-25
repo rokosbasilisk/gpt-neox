@@ -116,7 +116,7 @@ def setup_deepspeed_random_and_activation_checkpointing(neox_args):
 def _initialize_distributed(neox_args):
     """Initialize torch.distributed and mpu."""
 
-    device_count = torch.cuda.device_count()
+    device_count = 1
     if torch.distributed.is_initialized():
 
         if neox_args.rank == 0:

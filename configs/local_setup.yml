@@ -19,7 +19,7 @@
   "merge-file": "data/gpt2-merges.txt",
 
   "save": "checkpoints",
-  "load": "checkpoints",
+  "load": "checkpoints/gpt2-350m",
   "checkpoint_validation_with_forward_pass": False,
   
   "tensorboard-dir": "tensorboard",

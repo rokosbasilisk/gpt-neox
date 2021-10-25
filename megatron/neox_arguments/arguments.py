@@ -521,19 +521,20 @@ class NeoXArgs(*BASE_CLASSES):
 
         # number of gpus
         # Get number of GPUs param or hostfile to determine train_batch_size
-        global_num_gpus = getattr(self, "global_num_gpus", None)
-        if global_num_gpus is None:
-            if self.hostfile is not None or os.path.exists(DLTS_HOSTFILE):
-                hostfile_path = self.hostfile or DLTS_HOSTFILE
-                resources = obtain_resource_pool(hostfile_path, self.include or "", self.exclude or "")
-                if self.num_nodes is not None and self.num_nodes > 0:
-                    resources = {k:resources[k] for k in list(resources.keys())[:self.num_nodes]}
-                global_num_gpus = sum(map(len, resources.values()))
-                if self.num_gpus is not None and self.num_gpus > 0:
-                    global_num_gpus = self.num_gpus * len(resources)
-            else:
-                global_num_gpus = torch.cuda.device_count()
-            self.update_value("global_num_gpus", global_num_gpus)
+        #global_num_gpus = getattr(self, "global_num_gpus", None)
+        global_num_gpus = 1
+        #if global_num_gpus is None:
+        #    if self.hostfile is not None or os.path.exists(DLTS_HOSTFILE):
+        #        hostfile_path = self.hostfile or DLTS_HOSTFILE
+        #        resources = obtain_resource_pool(hostfile_path, self.include or "", self.exclude or "")
+        #        if self.num_nodes is not None and self.num_nodes > 0:
+        #            resources = {k:resources[k] for k in list(resources.keys())[:self.num_nodes]}
+        #        global_num_gpus = sum(map(len, resources.values()))
+        #        if self.num_gpus is not None and self.num_gpus > 0:
+        #            global_num_gpus = self.num_gpus * len(resources)
+        #    else:
+        #        global_num_gpus = torch.cuda.device_count()
+        #    self.update_value("global_num_gpus", global_num_gpus)
 
         logging.info(
             self.__class__.__name__ + ".calculate_derived() " + f"Total number of GPUs determined to be: {global_num_gpus}")

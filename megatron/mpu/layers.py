@@ -24,7 +24,9 @@
 import math
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd import Function
 import torch.nn.init as init
 from torch.nn.parameter import Parameter
 
@@ -38,6 +40,29 @@ from .random import get_cuda_rng_tracker
 from .utils import divide
 from .utils import VocabUtility
 from einops import rearrange
+
+'''
+Binary layers
+original code from  https://github.com/Akashmathwani/Binarized-Neural-networks-using-pytorch
+'''
+class BinarizeF(Function):
+
+    @staticmethod
+    def forward(cxt, input):
+        output = input.new(input.size())
+        output[input >= 0] = 1
+        output[input < 0] = -1
+        return output
+
+    @staticmethod
+    def backward(cxt, grad_output):
+        grad_input = grad_output.clone()
+        return grad_input
+
+binarize = BinarizeF.apply
+
+
+
 
 def _initialize_affine_weight_gpu(weight, init_method,
                                   partition_dim, stride=1):
@@ -277,12 +302,13 @@ class ColumnParallelLinear(torch.nn.Module):
         skip_bias_add: This was added to enable performance optimations where bias
                        can be fused with other elementwise operations. we skip 
                        adding bias but instead return it.
+        is_binary: implements binary weighted linear layers 
     """
 
     def __init__(self, neox_args, input_size, output_size, bias=True, gather_output=True,
                  init_method=init.xavier_normal_, stride=1,
                  keep_master_weight_for_test=False,
-                 skip_bias_add=False):
+                 skip_bias_add=False,is_binary=False):
         super(ColumnParallelLinear, self).__init__()
 
         # Keep input parameters
@@ -293,6 +319,7 @@ class ColumnParallelLinear(torch.nn.Module):
         world_size = get_model_parallel_world_size()
         self.output_size_per_partition = divide(output_size, world_size)
         self.skip_bias_add = skip_bias_add
+        self.is_binary = is_binary
 
         # Parameters.
         # Note: torch.nn.functional.linear performs XA^T + b and as a result
@@ -337,6 +364,8 @@ class ColumnParallelLinear(torch.nn.Module):
         # Matrix multiply.
 
         bias = self.bias if not self.skip_bias_add else None
+        if self.is_binary:
+            self.weight = binarize(self.weight)
         output_parallel = F.linear(input_parallel, self.weight, bias)
         if self.gather_output:
             # All-gather across the partitions.
@@ -375,6 +404,7 @@ class RowParallelLinear(torch.nn.Module):
         skip_bias_add: This was added to enable performance optimations where bias
                        can be fused with other elementwise operations. we skip 
                        adding bias but instead return it.
+        is_binary: implements binary weighted linear layers
     """
 
     def __init__(self, neox_args, input_size, output_size, bias=True,
@@ -382,7 +412,7 @@ class RowParallelLinear(torch.nn.Module):
                  init_method=init.xavier_normal_, stride=1,
                  keep_master_weight_for_test=False,
                  skip_bias_add=False,
-                 parallel_output=False):
+                 parallel_output=False,is_binary=False):
         super(RowParallelLinear, self).__init__()
 
         # Keep input parameters
@@ -394,6 +424,7 @@ class RowParallelLinear(torch.nn.Module):
         self.input_size_per_partition = divide(input_size, world_size)
         self.skip_bias_add = skip_bias_add
         self.parallel_output = parallel_output
+        self.is_binary = is_binary
 
         # Parameters.
         # Note: torch.nn.functional.linear performs XA^T + b and as a result
@@ -434,6 +465,8 @@ class RowParallelLinear(torch.nn.Module):
         else:
             input_parallel = scatter_to_model_parallel_region(input_)
         # Matrix multiply.
+        if self.is_binary:
+            self.weight = binarize(self.weight)
         output_parallel = F.linear(input_parallel, self.weight)
         # All-reduce across all the partitions.
         if not self.parallel_output:
